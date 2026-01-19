@@ -10,7 +10,7 @@ use std::process::Command;
 use vx_core::ssh;
 
 /// Entry point for SSH command dispatch.
-/// Handles `vx ssh init`, `vx ssh connect`, and `vx ssh <server>`.
+/// Handles `vx ssh init`, `vx ssh connect`, `vx ssh remove`, `vx ssh list`, and `vx ssh <server>`.
 pub fn execute(target: Option<String>, args: Vec<String>) -> Result<(), CliError> {
     match target.as_deref() {
         Some("init") => {
@@ -18,6 +18,27 @@ pub fn execute(target: Option<String>, args: Vec<String>) -> Result<(), CliError
                 return Err(CliError::Generic("Usage: vx ssh init <name>".to_string()));
             }
             init(&args[0])
+        }
+        Some("add") => {
+            if args.is_empty() {
+                return Err(CliError::Generic("Usage: vx ssh add <name> <user@host>".to_string()));
+            }
+            if args.len() < 2 {
+                // Interactive setup
+                setup_server(&args[0])
+            } else {
+                // Direct setup: vx ssh add <name> <user@host>
+                add_server(&args[0], &args[1])
+            }
+        }
+        Some("remove") => {
+            if args.is_empty() {
+                return Err(CliError::Generic("Usage: vx ssh remove <name>".to_string()));
+            }
+            remove(&args[0])
+        }
+        Some("list") => {
+            list_ssh()
         }
         Some("connect") => {
             if args.is_empty() {
@@ -82,8 +103,15 @@ pub fn execute(target: Option<String>, args: Vec<String>) -> Result<(), CliError
              }
         }
         None => {
-            // No arguments provided
-            Err(CliError::Generic("Usage: vx ssh <server> or vx ssh init <name>".to_string()))
+            // No arguments provided - show help
+            println!("SSH identity and server management\n");
+            println!("Usage:");
+            println!("  vx ssh init <name>            Create new SSH identity");
+            println!("  vx ssh add <name> <user@host> Configure server connection");
+            println!("  vx ssh <server>               Connect to configured server");
+            println!("  vx ssh list                   List all identities and servers");
+            println!("  vx ssh remove <name>          Remove server/identity");
+            Ok(())
         }
     }
 }
@@ -349,6 +377,166 @@ fn execute_ssh_connection(
             status.code().unwrap_or(-1)
         )));
     }
+
+    Ok(())
+}
+
+/// Removes an SSH server/identity from the vault.
+fn remove(name: &str) -> Result<(), CliError> {
+    // Load vault
+    let (mut vault, _encryption_key, password_bytes) = if let Some(cached) = session::get_cached_password()? {
+        match storage::load_vault_with_key(&cached) {
+            Ok((v, k)) => (v, k, cached),
+            Err(_) => {
+                let _ = session::clear_cached_password();
+                let p = input::read_password("Enter master password: ")?;
+                let (v, k) = storage::load_vault_with_key(p.as_bytes())?;
+                (v, k, p.into_bytes())
+            }
+        }
+    } else {
+        let p = input::read_password("Enter master password: ")?;
+        let (v, k) = storage::load_vault_with_key(p.as_bytes())?;
+        (v, k, p.into_bytes())
+    };
+
+    // Check what exists
+    let has_server = vault.ssh_servers.contains_key(name);
+    let has_identity = vault.ssh_identities.contains_key(name);
+
+    if !has_server && !has_identity {
+        return Err(CliError::SshError(format!(
+            "No SSH server or identity found with name '{}'",
+            name
+        )));
+    }
+
+    // Confirm removal
+    let msg = if has_server && has_identity {
+        format!("Remove SSH server AND identity '{}'?", name)
+    } else if has_server {
+        format!("Remove SSH server '{}'?", name)
+    } else {
+        format!("Remove SSH identity '{}'? (This will also remove any servers using it)", name)
+    };
+
+    if !input::confirm(&msg)? {
+        println!("Cancelled.");
+        return Ok(());
+    }
+
+    // Remove server first (if exists)
+    if has_server {
+        vault.remove_ssh_server(name)?;
+        println!("SSH server '{}' removed.", name);
+    }
+
+    // Remove identity (if exists)
+    if has_identity {
+        vault.remove_ssh_identity(name)?;
+        println!("SSH identity '{}' removed.", name);
+    }
+
+    // Save vault
+    storage::save_vault(&vault, &password_bytes)?;
+
+    Ok(())
+}
+
+/// Lists all SSH identities and servers.
+fn list_ssh() -> Result<(), CliError> {
+    let (vault, _) = storage::load_vault_with_key_auto()?;
+
+    if vault.ssh_identities.is_empty() && vault.ssh_servers.is_empty() {
+        println!("No SSH identities or servers configured.");
+        println!("\nCreate one with: vx ssh init <name>");
+        return Ok(());
+    }
+
+    if !vault.ssh_servers.is_empty() {
+        println!("SSH Servers:");
+        for (name, server) in &vault.ssh_servers {
+            println!("  {} → {}@{}", name, server.username, server.ip_address);
+        }
+        println!();
+    }
+
+    // Show standalone identities (not linked to servers)
+    let standalone: Vec<_> = vault
+        .ssh_identities
+        .keys()
+        .filter(|name| !vault.ssh_servers.contains_key(*name))
+        .collect();
+
+    if !standalone.is_empty() {
+        println!("SSH Identities (not configured as servers):");
+        for name in standalone {
+            println!("  {} (configure with: vx ssh add {})", name, name);
+        }
+    }
+
+    Ok(())
+}
+
+/// Adds a server configuration directly (non-interactive).
+fn add_server(name: &str, user_host: &str) -> Result<(), CliError> {
+    // Parse user@host
+    let parts: Vec<&str> = user_host.splitn(2, '@').collect();
+    if parts.len() != 2 {
+        return Err(CliError::Generic(
+            "Invalid format. Use: vx ssh add <name> <user@host>".to_string(),
+        ));
+    }
+    let username = parts[0];
+    let ip_address = parts[1];
+
+    if username.is_empty() || ip_address.is_empty() {
+        return Err(CliError::Generic("Username and host cannot be empty".to_string()));
+    }
+
+    validate_ip_or_hostname(ip_address)?;
+
+    // Load vault
+    let (mut vault, _encryption_key, password_bytes) = if let Some(cached) = session::get_cached_password()? {
+        match storage::load_vault_with_key(&cached) {
+            Ok((v, k)) => (v, k, cached),
+            Err(_) => {
+                let _ = session::clear_cached_password();
+                let p = input::read_password("Enter master password: ")?;
+                let (v, k) = storage::load_vault_with_key(p.as_bytes())?;
+                (v, k, p.into_bytes())
+            }
+        }
+    } else {
+        let p = input::read_password("Enter master password: ")?;
+        let (v, k) = storage::load_vault_with_key(p.as_bytes())?;
+        (v, k, p.into_bytes())
+    };
+
+    // Check if identity exists
+    if !vault.ssh_identities.contains_key(name) {
+        return Err(CliError::SshError(format!(
+            "SSH identity '{}' not found. Create it first with: vx ssh init {}",
+            name, name
+        )));
+    }
+
+    // Check if server already exists
+    if vault.has_ssh_server(name) {
+        if !input::confirm(&format!("Server '{}' already configured. Overwrite?", name))? {
+            println!("Cancelled.");
+            return Ok(());
+        }
+    }
+
+    // Save configuration
+    vault.add_ssh_server(name, username.to_string(), ip_address.to_string(), name.to_string())?;
+    storage::save_vault(&vault, &password_bytes)?;
+
+    println!("\n✓ Server '{}' configured!", name);
+    println!("  Username: {}", username);
+    println!("  IP: {}", ip_address);
+    println!("\nConnect with: vx ssh {}", name);
 
     Ok(())
 }

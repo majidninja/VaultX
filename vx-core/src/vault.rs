@@ -280,6 +280,30 @@ impl Vault {
             Err(VaultError::SecretNotFound(key.to_string()))
         }
     }
+
+    /// Removes an SSH server configuration.
+    pub fn remove_ssh_server(&mut self, name: &str) -> Result<(), VaultError> {
+        if self.ssh_servers.remove(name).is_some() {
+            Ok(())
+        } else {
+            Err(VaultError::ServerNotFound(name.to_string()))
+        }
+    }
+
+    /// Removes an SSH identity from the vault.
+    /// Note: Also removes any server configurations that use this identity.
+    pub fn remove_ssh_identity(&mut self, name: &str) -> Result<(), VaultError> {
+        if !self.ssh_identities.contains_key(name) {
+            return Err(VaultError::IdentityNotFound(name.to_string()));
+        }
+
+        // Remove any servers that use this identity
+        self.ssh_servers.retain(|_, server| server.identity_name != name);
+
+        // Remove the identity
+        self.ssh_identities.remove(name);
+        Ok(())
+    }
 }
 
 impl Default for Vault {

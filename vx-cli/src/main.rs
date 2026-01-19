@@ -83,12 +83,15 @@ enum Commands {
     /// Audit the vault for security issues
     Audit,
 
-    /// SSH identity management
+    /// SSH identity and server management
     ///
     /// Usage:
-    ///   vx ssh init <name>           - Initialize new SSH identity
-    ///   vx ssh <server>              - Connect to configured server
-    ///   vx ssh <identity> <user@host> - Connect using identity
+    ///   vx ssh init <name>            - Create new SSH identity
+    ///   vx ssh add <name> <user@host> - Configure server connection
+    ///   vx ssh <server>               - Connect to configured server
+    ///   vx ssh connect <server>       - Connect to server (same as above)
+    ///   vx ssh list                   - List all identities and servers
+    ///   vx ssh remove <name>          - Remove server/identity
     Ssh {
         /// Subcommand (init, connect) or server/identity name
         #[arg(allow_hyphen_values = true)]
