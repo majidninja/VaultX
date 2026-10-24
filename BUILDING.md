@@ -6,8 +6,8 @@
 # 1. Install Rust from https://rustup.rs/
 # 2. Restart terminal
 # 3. Run:
-cd vaultx
-.\build.ps1
+cd VaultX
+cargo build --release
 ```
 
 Binary will be at `target\release\vx.exe` (~2-3 MB)
@@ -40,7 +40,7 @@ Binary will be at `target\release\vx.exe` (~2-3 MB)
 
 ### Build
 ```powershell
-cd vaultx
+cd VaultX
 cargo build --release
 ```
 
@@ -58,7 +58,7 @@ cargo build --release
 
 ### Using the script:
 ```powershell
-cd vaultx
+cd VaultX
 .\build-all.ps1
 ```
 
@@ -115,7 +115,7 @@ Builds:
 ## Method 4: Build on Linux
 
 ```bash
-cd vaultx
+cd VaultX
 cargo build --release
 
 # Binary at: target/release/vx
@@ -127,7 +127,7 @@ cargo build --release
 ## Method 5: Build on macOS
 
 ```bash
-cd vaultx
+cd VaultX
 
 # Intel Mac
 cargo build --release --target x86_64-apple-darwin
@@ -279,9 +279,9 @@ You only need the `vx` or `vx.exe` file!
 
 ## Next Steps
 
-1. **Build:** `.\build.ps1`
+1. **Build:** `cargo build --release`
 2. **Test:** `.\target\release\vx.exe --help`
-3. **Use:** See [QUICKSTART.md](QUICKSTART.md)
+3. **Use:** See the [Quick start](README.md#quick-start)
 4. **Distribute:** See [README.md](README.md)
 
 For automated multi-platform builds, push to GitHub and use the Actions workflow.

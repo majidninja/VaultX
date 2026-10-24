@@ -5,7 +5,7 @@ VaultX can be installed globally via npm with automatic platform detection and b
 ## Quick Install
 
 ```bash
-npm install -g vaultx
+npm install -g @vaultx-official/vaultx
 ```
 
 That's it! The install script will:
@@ -40,7 +40,7 @@ vx get my-project API_KEY
 
 ## What Gets Installed
 
-When you run `npm install -g vaultx`, you get:
+When you run `npm install -g @vaultx-official/vaultx`, you get:
 
 ### Binary Downloads (Automatic)
 | Platform | Size | Type |
@@ -98,7 +98,7 @@ When you run `npm install -g vaultx`, you get:
 
 ### Step 1: Install from npm Registry
 ```bash
-npm install -g vaultx
+npm install -g @vaultx-official/vaultx
 ```
 
 ### Step 2: Automatic Download (During Installation)
@@ -124,14 +124,14 @@ npm update -g vaultx
 
 Or reinstall from scratch:
 ```bash
-npm uninstall -g vaultx
-npm install -g vaultx
+npm uninstall -g @vaultx-official/vaultx
+npm install -g @vaultx-official/vaultx
 ```
 
 ## Uninstallation
 
 ```bash
-npm uninstall -g vaultx
+npm uninstall -g @vaultx-official/vaultx
 ```
 
 This removes the `vx` command and cleans up downloaded binaries.
@@ -158,13 +158,13 @@ $(npm config get prefix)/bin/vx --version
 
 This might happen if:
 1. **Installation was interrupted**
-   - Solution: Reinstall with `npm install -g vaultx`
+   - Solution: Reinstall with `npm install -g @vaultx-official/vaultx`
 
 2. **Download failed due to network**
    - Solution: Check internet connection and retry
    - ```bash
      npm cache clean --force
-     npm install -g vaultx
+     npm install -g @vaultx-official/vaultx
      ```
 
 3. **Platform not supported**
@@ -172,7 +172,7 @@ This might happen if:
    - ```bash
      git clone https://github.com/skdas20/VaultX.git
      cd VaultX
-     ./build.sh
+     cargo build --release
      ```
 
 ### Installation Takes Too Long
@@ -201,7 +201,7 @@ This means the binary release doesn't exist yet. Solutions:
 ```powershell
 # Run PowerShell as Administrator
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-npm install -g vaultx
+npm install -g @vaultx-official/vaultx
 ```
 
 #### Binary won't execute
@@ -215,7 +215,7 @@ Unblock-File -Path "$(npm config get prefix)\bin\vx.js"
 ### Architecture
 
 ```
-npm install -g vaultx
+npm install -g @vaultx-official/vaultx
     ↓
 package.json (postinstall hook)
     ↓
@@ -274,7 +274,7 @@ After installation, binaries are stored at:
 ### Installing Specific Version
 
 ```bash
-npm install -g vaultx@0.1.0
+npm install -g @vaultx-official/vaultx@0.1.0
 ```
 
 ### Local Installation (Not Global)
@@ -298,19 +298,19 @@ npm link
 ### GitHub Actions
 ```yaml
 - name: Install VaultX
-  run: npm install -g vaultx
+  run: npm install -g @vaultx-official/vaultx
 ```
 
 ### Docker
 ```dockerfile
 FROM node:16
-RUN npm install -g vaultx
+RUN npm install -g @vaultx-official/vaultx
 ```
 
 ### GitLab CI
 ```yaml
 before_script:
-  - npm install -g vaultx
+  - npm install -g @vaultx-official/vaultx
 ```
 
 ## Feedback & Support
@@ -330,9 +330,9 @@ A: The first installation requires internet to download the binary. After that, 
 **Q: Does this work with Node.js package managers other than npm?**
 A: Yes! Also works with yarn, pnpm, bun:
 ```bash
-yarn global add vaultx
-pnpm add -g vaultx
-bun add -g vaultx
+yarn global add @vaultx-official/vaultx
+pnpm add -g @vaultx-official/vaultx
+bun add -g @vaultx-official/vaultx
 ```
 
 **Q: What if my platform isn't supported?**
@@ -340,8 +340,8 @@ A: Build from source:
 ```bash
 git clone https://github.com/skdas20/VaultX.git
 cd VaultX
-./build.sh
-sudo cp dist/vx* /usr/local/bin/
+cargo build --release
+sudo cp target/release/vx /usr/local/bin/
 ```
 
 **Q: Can I customize the installation?**

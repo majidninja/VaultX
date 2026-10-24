@@ -8,9 +8,9 @@ members = [
 [workspace.package]
 version = "0.3.7"
 edition = "2021"
-authors = ["VaultX Team"]
+authors = ["Sumit Kumar Das <skdas5405@gmail.com>"]
 license = "MIT"
-repository = "https://github.com/vaultx/vaultx"
+repository = "https://github.com/skdas20/VaultX"
 
 [workspace.dependencies]
 # Serialization

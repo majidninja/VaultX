@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in vx doesn't work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste real secrets or your master password here.**
+        Security vulnerabilities go to [private advisories](https://github.com/skdas20/VaultX/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you ran, what you expected, and what you saw instead.
+      placeholder: |
+        I ran `vx add my-app TOKEN --ttl 7d` and expected ... but got ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: vx version
+      description: Output of `vx --version`
+      placeholder: vx 0.3.7
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install vx?
+      options:
+        - npm (@vaultx-official/vaultx)
+        - Prebuilt binary from GitHub Releases
+        - Built from source
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Windows
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output
+      description: Copy the full error message. Remove anything sensitive.
+      render: shell
