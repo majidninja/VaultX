@@ -95,6 +95,30 @@ pub fn calculate_expiry(ttl_seconds: u64, now: u64) -> Option<u64> {
     now.checked_add(ttl_seconds)
 }
 
+/// Formats a remaining duration using its two largest units.
+///
+/// # Examples
+/// ```
+/// use vx_core::ttl::format_remaining;
+///
+/// assert_eq!(format_remaining(1209599), "13d 23h");
+/// assert_eq!(format_remaining(18720), "5h 12m");
+/// assert_eq!(format_remaining(240), "4m");
+/// ```
+pub fn format_remaining(seconds: u64) -> String {
+    let days = seconds / SECONDS_PER_DAY;
+    let hours = (seconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR;
+    let minutes = (seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE;
+
+    if days > 0 {
+        format!("{}d {}h", days, hours)
+    } else if hours > 0 {
+        format!("{}h {}m", hours, minutes)
+    } else {
+        format!("{}m", minutes)
+    }
+}
+
 /// Returns the current Unix timestamp in seconds.
 pub fn current_timestamp() -> u64 {
     std::time::SystemTime::now()
@@ -174,5 +198,28 @@ mod tests {
     fn test_calculate_expiry() {
         assert_eq!(calculate_expiry(3600, 1000), Some(4600));
         assert_eq!(calculate_expiry(86400, 0), Some(86400));
+    }
+
+    #[test]
+    fn test_format_remaining_under_an_hour() {
+        assert_eq!(format_remaining(0), "0m");
+        assert_eq!(format_remaining(59), "0m");
+        assert_eq!(format_remaining(240), "4m");
+        assert_eq!(format_remaining(3599), "59m");
+    }
+
+    #[test]
+    fn test_format_remaining_hours() {
+        assert_eq!(format_remaining(3600), "1h 0m");
+        assert_eq!(format_remaining(18720), "5h 12m");
+        assert_eq!(format_remaining(86399), "23h 59m");
+    }
+
+    #[test]
+    fn test_format_remaining_days() {
+        assert_eq!(format_remaining(86400), "1d 0h");
+        assert_eq!(format_remaining(90000), "1d 1h");
+        assert_eq!(format_remaining(1209599), "13d 23h");
+        assert_eq!(format_remaining(3 * SECONDS_PER_WEEK), "21d 0h");
     }
 }

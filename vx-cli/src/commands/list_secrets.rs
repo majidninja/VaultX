@@ -31,14 +31,7 @@ pub fn execute(project: &str) -> Result<(), CliError> {
             if expires_at < now {
                 "(expired)".to_string()
             } else {
-                let remaining = expires_at - now;
-                let hours = remaining / 3600;
-                let minutes = (remaining % 3600) / 60;
-                if hours > 0 {
-                    format!("(expires in {}h {}m)", hours, minutes)
-                } else {
-                    format!("(expires in {}m)", minutes)
-                }
+                format!("(expires in {})", ttl::format_remaining(expires_at - now))
             }
         } else {
             "(no expiry)".to_string()
