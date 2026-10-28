@@ -5,7 +5,7 @@
 use crate::error::CliError;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use vx_core::crypto::{derive_key, KEY_SIZE, SALT_SIZE};
 use vx_core::{vault, Vault};
 
@@ -156,7 +156,7 @@ pub fn save_vault(vault: &Vault, password: &[u8]) -> Result<(), CliError> {
 
     // Ensure directory exists
     if !dir.exists() {
-        fs::create_dir_all(&dir)?;
+        create_private_dir(&dir)?;
     }
 
     // Extract existing salt if vault exists, otherwise None for new vault
@@ -176,16 +176,49 @@ pub fn save_vault(vault: &Vault, password: &[u8]) -> Result<(), CliError> {
     // Atomic write: write to temp file, then rename
     let temp_path = path.with_extension("tmp");
 
-    {
-        let mut file = fs::File::create(&temp_path)?;
-        file.write_all(&data)?;
-        file.sync_all()?;
+    // A leftover temp file from an interrupted write would make create_new fail
+    if temp_path.exists() {
+        fs::remove_file(&temp_path)?;
     }
+    write_private_file(&temp_path, &data)?;
 
     // Rename temp to final (atomic on most filesystems)
     fs::rename(&temp_path, &path)?;
 
     Ok(())
+}
+
+/// Creates `dir` and any missing parents, readable only by the owner on Unix.
+fn create_private_dir(dir: &Path) -> std::io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+
+    builder.create(dir)
+}
+
+/// Writes `data` to a new file at `path`, readable only by the owner on Unix.
+///
+/// The mode is set when the file is created, so it is never readable by
+/// other users, not even briefly. Fails if `path` already exists.
+fn write_private_file(path: &Path, data: &[u8]) -> std::io::Result<()> {
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+
+    let mut file = options.open(path)?;
+    file.write_all(data)?;
+    file.sync_all()
 }
 
 /// Creates a new vault file and returns the vault with its encryption key.
@@ -197,4 +230,44 @@ pub fn create_vault(password: &[u8]) -> Result<(Vault, [u8; KEY_SIZE]), CliError
     let key = derive_vault_key(password)?;
 
     Ok((vault, key))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn mode(path: &Path) -> u32 {
+        fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[test]
+    fn private_dir_is_owner_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("home").join(VAULT_DIR);
+
+        create_private_dir(&dir).unwrap();
+
+        assert_eq!(mode(&dir), 0o700);
+    }
+
+    #[test]
+    fn private_file_is_owner_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("vault.vx.tmp");
+
+        write_private_file(&path, b"data").unwrap();
+
+        assert_eq!(mode(&path), 0o600);
+        assert_eq!(fs::read(&path).unwrap(), b"data");
+    }
+
+    #[test]
+    fn private_file_refuses_existing_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("vault.vx.tmp");
+        fs::write(&path, b"old").unwrap();
+
+        assert!(write_private_file(&path, b"new").is_err());
+    }
 }
